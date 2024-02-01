@@ -1,4 +1,5 @@
 import random
+
 _range_ = 100
 hidden_layer_sizes = [x * 10 for x in range(1, _range_ + 1)]
 number_of_hidden_layers = [x for x in range(1, _range_ + 1)]
@@ -51,15 +52,12 @@ def objective_function(x):
     accuracy, time, memory = data_param_to_metric[(x[0] * 10, x[1], x[2]/1000)]
     return (time * memory) / (accuracy * accuracy * accuracy)
 
-
-
 def update_velocity(particle, global_best_position, w=0.5, c1=1.5, c2=1.5):
     for i in range(len(particle.velocity)):
         r1, r2 = random.random(), random.random()
         cognitive_component = c1 * r1 * (particle.best_position[i] - particle.position[i])
         social_component = c2 * r2 * (global_best_position[i] - particle.position[i])
         particle.velocity[i] = w * particle.velocity[i] + cognitive_component + social_component
-        
 
 def update_position(particle):
     for i in range(len(particle.position)):
@@ -70,7 +68,6 @@ def update_position(particle):
         if particle.position[i] < 1:
             particle.position[i] = 1
         
-
 def pso_algorithm(num_iterations):
     particles = [Particle(1, _range_) for _ in range(particle_nums + 1)]
     global_best_particle = min(particles, key=lambda x: objective_function(x.position))
