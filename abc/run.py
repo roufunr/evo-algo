@@ -36,5 +36,6 @@ def generate_synthetic_data():
                     min_mem = memory
                 if memory > max_mem :
                     max_mem = memory
-    print('min-accuracy:', min, 'max-accuracy:', max, 'min-inference-time:', min_time,'max-inference-time:', max_time,'min-memory:', min_mem, 'max-memory:', max_mem)
+    print('min-accuracy:', round(min, 2), 'max-accuracy:', round(max, 2), 'min-inference-time:', round(min_time, 2),'max-inference-time:', round(max_time, 2),'min-memory:', round(min_mem, 2), 'max-memory:', round(max_mem, 2))
 
+generate_synthetic_data()
