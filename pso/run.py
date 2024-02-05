@@ -45,8 +45,8 @@ def generate_synthetic_data():
 # synthetic data section ends here
 
 # particle swarm algorithm parameters
-particle_nums = 10000
-num_iterations = 5000
+particle_nums = 10
+num_iterations = 5
 w_range = (0.5, 0.9)
 c1 = 2
 c2 = 2
@@ -62,7 +62,8 @@ class Particle:
 
 def objective_function(x):
     accuracy, time, memory = data_param_to_metric[(x[0] * 10, x[1], x[2]/1000)]
-    return (time * memory) / (accuracy * accuracy * accuracy)
+    x = (0.34) * (accuracy * 100 * 100) -  (0.33) * time - (0.33) * memory
+    return (1/(1 + x)) if x > 0 else (1 + abs(x))
 
 def update_velocity(particle, global_best_position, w):
     for i in range(len(particle.velocity)):
