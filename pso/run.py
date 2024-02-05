@@ -45,8 +45,8 @@ def generate_synthetic_data():
 # synthetic data section ends here
 
 # particle swarm algorithm parameters
-particle_nums = 20
-num_iterations = 500
+particle_nums = 10000
+num_iterations = 5000
 w_range = (0.5, 0.9)
 c1 = 2
 c2 = 2
@@ -107,7 +107,6 @@ def pso_algorithm():
 
 if __name__ == "__main__":
     generate_synthetic_data()
-    
     best_position, best_fitness = pso_algorithm()
     print("Best fitness: ", best_fitness)
     accuracy, time, memory = data_param_to_metric[(best_position[0] * 10, best_position[1], best_position[2]/1000)]
