@@ -46,7 +46,7 @@ def generate_synthetic_data():
 
 # particle swarm algorithm parameters
 particle_nums = 10
-num_iterations = 5
+num_iterations = 10
 w_range = (0.5, 0.9)
 c1 = 2
 c2 = 2
