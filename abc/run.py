@@ -44,11 +44,14 @@ food_sources_nums = 10
 particle_nums = dimensions * food_sources_nums              # multiple of 3 because we have three parameters to be tuned (N)
 iteration_nums = 10                                         # you can set any number
 abandoned_solution_limit = 1
+counter = 0
 
 def calculate_fitness(x):
     return ((1/(1 + x)) if x > 0 else (1 + abs(x))) 
 
 def objective_function(x):
+    global counter
+    counter += 1
     accuracy, time, memory = data_param_to_metric[(x[0] * 10, x[1], x[2]/1000)]
     return  (0.34) * (accuracy * 100 * 100) -  (0.33) * time - (0.33) * memory
 
@@ -159,3 +162,4 @@ if __name__ == "__main__":
     print("hidden_layer_size: ", best_position[0] * 10)
     print("num_hidden_layer: ", best_position[1])
     print("learning_rate: ", best_position[2] / 1000)
+    print("total overhead: ", counter)

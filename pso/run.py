@@ -50,6 +50,7 @@ num_iterations = 10
 w_range = (0.5, 0.9)
 c1 = 2
 c2 = 2
+counter = 0
 
 
 class Particle:
@@ -61,6 +62,8 @@ class Particle:
         self.best_fitness = float('inf')
 
 def objective_function(x):
+    global counter
+    counter += 1
     accuracy, time, memory = data_param_to_metric[(x[0] * 10, x[1], x[2]/1000)]
     x = (0.34) * (accuracy * 100 * 100) -  (0.33) * time - (0.33) * memory
     return (1/(1 + x)) if x > 0 else (1 + abs(x))
@@ -118,3 +121,4 @@ if __name__ == "__main__":
     print("hidden_layer_size: ", best_position[0] * 10)
     print("num_hidden_layer: ", best_position[1])
     print("learning_rate: ", best_position[2] / 1000)
+    print("total overhead: ", counter)
