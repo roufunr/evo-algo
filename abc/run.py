@@ -42,7 +42,7 @@ def generate_synthetic_data():
 dimensions = 3                                              # number of parameters
 food_sources_nums = 10
 particle_nums = dimensions * food_sources_nums              # multiple of 3 because we have three parameters to be tuned (N)
-iteration_nums = 30                                       # you can set any number
+iteration_nums = 10                                         # you can set any number
 abandoned_solution_limit = 1
 
 def calculate_fitness(x):
@@ -50,7 +50,7 @@ def calculate_fitness(x):
 
 def objective_function(x):
     accuracy, time, memory = data_param_to_metric[(x[0] * 10, x[1], x[2]/1000)]
-    return  accuracy / (time * memory)
+    return  (0.34) * (accuracy * 100 * 100) -  (0.33) * time - (0.33) * memory
 
 def perform_employed_phase(food_sources_data, f_x, fitnesses, trials):
     for i in range(food_sources_nums):
@@ -81,6 +81,7 @@ def perform_employed_phase(food_sources_data, f_x, fitnesses, trials):
 def perform_onlooker_phase(food_sources_data, f_x, fitnesses, trials):
     i = 0                                   # index of current food source
     k = 0                                   # number of iteration
+    l = 0
     sum_of_fitnessess = sum(fitnesses)
     probabilities = [fitness/sum_of_fitnessess for fitness in fitnesses]
     while i < food_sources_nums:
@@ -109,9 +110,14 @@ def perform_onlooker_phase(food_sources_data, f_x, fitnesses, trials):
                 food_sources_data[i] = X_new
             else: 
                 trials[i] += trials[i]
+            probabilities = [fitness/sum_of_fitnessess for fitness in fitnesses]
             i += 1
         k += 1
         k %= food_sources_nums
+        l += 1
+        if l >= particle_nums:
+            break
+
         
 def perform_scout_phase(food_sources_data, f_x, fitnesses, trials):
     for i in range(food_sources_nums):
