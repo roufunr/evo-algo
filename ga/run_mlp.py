@@ -3,18 +3,7 @@ import pandas as pd
 from itertools import product
 
 data_path = "/home/rouf/Documents/code/evo-algo/real_data/old_PC.csv"
-# excluding 150
-# param_grid = {
-#     'hidden_layer_sizes': [(50,), (100,), (50, 50), (50, 100), (100, 50), (100, 100), (50, 50, 50), (50, 50, 100), (50, 100, 50), (50, 100, 100), (100, 50, 50), (100, 50, 100), (100, 100, 50), (100, 100, 100)], 
-#     'activation': ['identity', 'relu', 'tanh'],
-#     'solver': ['sgd', 'adam', 'lbfgs'],
-#     'alpha': [0.01, 0.001, 0.0001],
-#     'learning_rate': ['constant', 'adaptive', 'invscaling'],
-#     'warm_start': [True, False]
-# }
 
-
-# including 150
 param_grid = {
     'hidden_layer_sizes': [(50,), (100,), (150,), (50, 50), (50, 100), (50, 150), (100, 50), (100, 100), (100, 150), (150, 50), (150, 100), (150, 150), (50, 50, 50), (50, 50, 100), (50, 50, 150), (50, 100, 50), (50, 100, 100), (50, 100, 150), (50, 150, 50), (50, 150, 100), (50, 150, 150), (100, 50, 50), (100, 50, 100), (100, 50, 150), (100, 100, 50), (100, 100, 100), (100, 100, 150), (100, 150, 50), (100, 150, 100), (100, 150, 150), (150, 50, 50), (150, 50, 100), (150, 50, 150), (150, 100, 50), (150, 100, 100), (150, 100, 150), (150, 150, 50), (150, 150, 100), (150, 150, 150)], 
     'activation': ['identity','relu', 'tanh'],
@@ -78,26 +67,15 @@ def load_data():
 
 data = load_data()
 
-
-
-
-
 def generate_random_position():
     random_param_set = {}
     for key in param_grid:
         random_param_set[key] = random.randint(0, len(param_grid[key]) - 1)
     return random_param_set
 
-def generate_random_velocity(low, high):
-    random_velocity = {}
-    for key in param_grid:
-        random_velocity[key] = random.uniform(low, high)
-    return random_velocity
-
 def calculate_utility_from_position(position):
     key_tuple = []
     for key in param_grid:
-        # print(position[key])
         key_tuple.append(param_grid[key][position[key]])
     key_tuple = tuple(key_tuple)
     return data['search_space'][key_tuple]
@@ -108,87 +86,57 @@ def get_paramset_from_position(position):
         best_param[key] = param_grid[key][position[key]]
     return best_param
 
-
-# particle swarm algorithm parameters
-particle_nums = 6 
-num_iterations = 30
-w_range = (0.5, 0.9)
-c1 = 2
-c2 = 2
-counter = 0
-f1_weight = 30/100
-memory_weight = (-1) * (50/100)
-inference_time_weight = (-1) * (20/100)
-
-
-
-class Particle:
-    def __init__(self):
-        # (accuracy, time, memory, hidden_layer_size, number_of_hidden_layer, learning_rate)
-        self.position = generate_random_position()
-        self.velocity = generate_random_velocity(-1, 1)
-        self.best_position = self.position
-        self.best_fitness = float('inf')
-
-def calculate_fitness(x): # x is a position
-    global counter
-    counter += 1
-    utilities = calculate_utility_from_position(x)
-    f1 = utilities['f1']
-    memory = utilities['memory']
-    inference_time = utilities['inference_time']
+def fitness_function(utility):
+    f1_weight = 30/100
+    memory_weight = (-1) * (50/100)
+    inference_time_weight = (-1) * (20/100)
+    
+    f1 = utility['f1']
+    memory = utility['memory']
+    inference_time = utility['inference_time']
+    
     x = f1_weight * (f1/data['max']['f1']) + inference_time_weight * (inference_time/data['max']['inference_time']) + memory_weight * (memory/data['max']['memory'])
     return (1/(1 + x)) if x > 0 else (1 + abs(x))
 
-def update_velocity(particle, global_best_position, w):
-    for key in particle.velocity:
-        r1, r2 = random.random(), random.random()
-        cognitive_component = c1 * r1 * (particle.best_position[key] - particle.position[key])
-        social_component = c2 * r2 * (global_best_position[key] - particle.position[key])
-        particle.velocity[key] = w * particle.velocity[key] + cognitive_component + social_component
+def crossover(parent1, parent2):
+    child = {}
+    for key in param_grid:
+        if random.random() < 0.5:
+            child[key] = parent1[key]
+        else:
+            child[key] = parent2[key]
+    return child
 
-def update_position(particle):
-    for key in particle.position:
-        particle.position[key] = particle.position[key] + particle.velocity[key]
-        particle.position[key] = int(round(particle.position[key]))
-        
-        if particle.position[key] > (len(param_grid[key]) - 1): 
-            particle.position[key] = (len(param_grid[key]) - 1)
-        if particle.position[key] < 0:
-            particle.position[key] = 0
+def mutate(child):
+    mutated_child = child.copy()
+    for key in param_grid:
+        if random.random() < 0.1:  # mutation rate
+            mutated_child[key] = random.randint(0, len(param_grid[key]) - 1)
+    return mutated_child
 
-def interpolate_w(iteration_no): 
-    return w_range[1] - (((iteration_no + 1)/num_iterations) * (w_range[1] - w_range[0]))
+def genetic_algorithm():
+    population_size = 6
+    num_generations = 10
+    population = [generate_random_position() for _ in range(population_size)]
 
-def pso_algorithm():
-    particles = [Particle() for _ in range(particle_nums + 1)]
-    global_best_particle = min(particles, key=lambda x: calculate_fitness(x.position))
-    global_best_position = global_best_particle.position
+    for _ in range(num_generations):
+        population_fitness = [fitness_function(calculate_utility_from_position(individual)) for individual in population]
+        sorted_population = [x for _, x in sorted(zip(population_fitness, population), key=lambda pair: pair[0])]
 
-    for _ in range(num_iterations):
-        for particle in particles:
-            fitness = calculate_fitness(particle.position)
-            if fitness < particle.best_fitness:
-                particle.best_fitness = fitness
-                particle.best_position = particle.position
+        parents = sorted_population[:2]
+        children = [crossover(parents[0], parents[1]) for _ in range(population_size - 2)]
+        mutated_children = [mutate(child) for child in children]
 
-            if fitness < calculate_fitness(global_best_position):
-                global_best_position = particle.position
-        
-        w = interpolate_w(_)
-        for particle in particles:
-            update_velocity(particle, global_best_position, w)
-            update_position(particle)
+        population = parents + mutated_children
 
-    return global_best_position, calculate_fitness(global_best_position)
-
-if __name__ == "__main__":
-    best_position, best_fitness = pso_algorithm()
-    print("Best fitness: ", best_fitness)
-    best_utility = calculate_utility_from_position(best_position)
+    best_individual = min(population, key=lambda x: fitness_function(calculate_utility_from_position(x)))
+    best_utility = calculate_utility_from_position(best_individual)
+    
     print("Optimal Accuracy: ", round(best_utility['f1'] * 100, 3), "%")
     print("Optimal inference time: ", round(best_utility['inference_time'], 3), "s")
     print("Optimal required memory: ", round(best_utility['memory'], 3), "MiB")
     print("Optimal idx: ", round(best_utility['idx'], 3), "th")
-    print("Optimal param: ", get_paramset_from_position(best_position))
-    print("Total inference:", counter)
+    print("Optimal param: ", get_paramset_from_position(best_individual))
+
+if __name__ == "__main__":
+    genetic_algorithm()
