@@ -2,9 +2,22 @@ import random
 import pandas as pd
 from itertools import product
 
+data_path = "/home/rouf/Documents/code/evo-algo/real_data/old_PC.csv"
+# excluding 150
+# param_grid = {
+#     'hidden_layer_sizes': [(50,), (100,), (50, 50), (50, 100), (100, 50), (100, 100), (50, 50, 50), (50, 50, 100), (50, 100, 50), (50, 100, 100), (100, 50, 50), (100, 50, 100), (100, 100, 50), (100, 100, 100)], 
+#     'activation': ['identity', 'relu', 'tanh'],
+#     'solver': ['sgd', 'adam', 'lbfgs'],
+#     'alpha': [0.01, 0.001, 0.0001],
+#     'learning_rate': ['constant', 'adaptive', 'invscaling'],
+#     'warm_start': [True, False]
+# }
+
+
+# including 150
 param_grid = {
-    'hidden_layer_sizes': [(50,), (100,), (50, 50), (50, 100), (100, 50), (100, 100), (50, 50, 50), (50, 50, 100), (50, 100, 50), (50, 100, 100), (100, 50, 50), (100, 50, 100), (100, 100, 50), (100, 100, 100)], 
-    'activation': ['identity', 'relu', 'tanh'],
+    'hidden_layer_sizes': [(50,), (100,), (150,), (50, 50), (50, 100), (50, 150), (100, 50), (100, 100), (100, 150), (150, 50), (150, 100), (150, 150), (50, 50, 50), (50, 50, 100), (50, 50, 150), (50, 100, 50), (50, 100, 100), (50, 100, 150), (50, 150, 50), (50, 150, 100), (50, 150, 150), (100, 50, 50), (100, 50, 100), (100, 50, 150), (100, 100, 50), (100, 100, 100), (100, 100, 150), (100, 150, 50), (100, 150, 100), (100, 150, 150), (150, 50, 50), (150, 50, 100), (150, 50, 150), (150, 100, 50), (150, 100, 100), (150, 100, 150), (150, 150, 50), (150, 150, 100), (150, 150, 150)], 
+    'activation': ['identity','relu', 'tanh'],
     'solver': ['sgd', 'adam', 'lbfgs'],
     'alpha': [0.01, 0.001, 0.0001],
     'learning_rate': ['constant', 'adaptive', 'invscaling'],
@@ -20,7 +33,7 @@ def search_space_init():
 
 def load_data():
     search_dict = search_space_init()
-    csv_data = pd.read_csv("/home/rouf/Documents/code/evo-algo/real_data/ORIN.csv")
+    csv_data = pd.read_csv(data_path)
     total_data = len(csv_data)
     max_f1 = -1
     max_memory = -1
@@ -97,15 +110,15 @@ def get_paramset_from_position(position):
 
 
 # particle swarm algorithm parameters
-particle_nums = 20
-num_iterations = 100
+particle_nums = 6 
+num_iterations = 30
 w_range = (0.5, 0.9)
 c1 = 2
 c2 = 2
 counter = 0
-f1_weight = 34/100
-memory_weight = (-1) * (33/100)
-inference_time_weight = (-1) * (33/100)
+f1_weight = 30/100
+memory_weight = (-1) * (50/100)
+inference_time_weight = (-1) * (20/100)
 
 
 
@@ -118,6 +131,8 @@ class Particle:
         self.best_fitness = float('inf')
 
 def objective_function(x): # x is a position
+    global counter
+    counter += 1
     utilities = calculate_utility_from_position(x)
     f1 = utilities['f1']
     memory = utilities['memory']
@@ -171,8 +186,9 @@ if __name__ == "__main__":
     best_position, best_fitness = pso_algorithm()
     print("Best fitness: ", best_fitness)
     best_utility = calculate_utility_from_position(best_position)
-    print("Optimal Accuracy: ", round(best_utility['f1'], 3), "%")
+    print("Optimal Accuracy: ", round(best_utility['f1'] * 100, 3), "%")
     print("Optimal inference time: ", round(best_utility['inference_time'], 3), "s")
     print("Optimal required memory: ", round(best_utility['memory'], 3), "MiB")
     print("Optimal idx: ", round(best_utility['idx'], 3), "th")
     print("Optimal param: ", get_paramset_from_position(best_position))
+    print("Total inference:", counter)
