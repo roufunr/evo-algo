@@ -81,10 +81,10 @@ def calculate_utility_from_position(position):
     return data['search_space'][key_tuple]
 
 def get_paramset_from_position(position):
-    best_param = {}
+    paramset = {}
     for key in param_grid:
-        best_param[key] = param_grid[key][position[key]]
-    return best_param
+        paramset[key] = param_grid[key][position[key]]
+    return paramset
 
 def fitness_function(utility):
     f1_weight = 30/100
