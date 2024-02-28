@@ -2,7 +2,12 @@ import random
 import pandas as pd
 from itertools import product
 
-data_path = "/home/rouf/Documents/code/evo-algo/real_data/old_PC.csv"
+data_path = "/home/rouf-linux/evo-algo/real_data/old_PC.csv"
+population_size = 10                # number of initial data point
+number_of_generation = 60           # number of iteration
+mutation_rate = 10/100              # percentage of change after crossover (random)
+optimal_parent_count = 5            # must be less than population size
+
 
 param_grid = {
     'hidden_layer_sizes': [(50,), (100,), (150,), (50, 50), (50, 100), (50, 150), (100, 50), (100, 100), (100, 150), (150, 50), (150, 100), (150, 150), (50, 50, 50), (50, 50, 100), (50, 50, 150), (50, 100, 50), (50, 100, 100), (50, 100, 150), (50, 150, 50), (50, 150, 100), (50, 150, 150), (100, 50, 50), (100, 50, 100), (100, 50, 150), (100, 100, 50), (100, 100, 100), (100, 100, 150), (100, 150, 50), (100, 150, 100), (100, 150, 150), (150, 50, 50), (150, 50, 100), (150, 50, 150), (150, 100, 50), (150, 100, 100), (150, 100, 150), (150, 150, 50), (150, 150, 100), (150, 150, 150)], 
@@ -98,33 +103,28 @@ def fitness_function(utility):
     x = f1_weight * (f1/data['max']['f1']) + inference_time_weight * (inference_time/data['max']['inference_time']) + memory_weight * (memory/data['max']['memory'])
     return (1/(1 + x)) if x > 0 else (1 + abs(x))
 
-def crossover(parent1, parent2):
+def crossover(parents):
     child = {}
     for key in param_grid:
-        if random.random() < 0.5:
-            child[key] = parent1[key]
-        else:
-            child[key] = parent2[key]
+        parent_idx = random.randint(0, len(parents) - 1)
+        child[key] = parents[parent_idx][key]
     return child
 
 def mutate(child):
     mutated_child = child.copy()
     for key in param_grid:
-        if random.random() < 0.1:  # mutation rate
+        if random.random() < mutation_rate:  # mutation rate
             mutated_child[key] = random.randint(0, len(param_grid[key]) - 1)
     return mutated_child
 
 def genetic_algorithm():
-    population_size = 6
-    num_generations = 10
     population = [generate_random_position() for _ in range(population_size)]
-
-    for _ in range(num_generations):
+    for _ in range(number_of_generation):
         population_fitness = [fitness_function(calculate_utility_from_position(individual)) for individual in population]
         sorted_population = [x for _, x in sorted(zip(population_fitness, population), key=lambda pair: pair[0])]
 
-        parents = sorted_population[:2]
-        children = [crossover(parents[0], parents[1]) for _ in range(population_size - 2)]
+        parents = sorted_population[:optimal_parent_count]
+        children = [crossover(parents) for _ in range(population_size - optimal_parent_count)]
         mutated_children = [mutate(child) for child in children]
 
         population = parents + mutated_children
