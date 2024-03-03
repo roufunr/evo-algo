@@ -10,7 +10,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-data_path = "/home/rouf/evo-algo/real_data/old_PC.csv"
+data_path = "/home/rouf/evo-algo/real_data/ORIN.csv"
 
 # GA Parameters
 population_sizes = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]                              # number of initial data point
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         'memory_diff'
     ]
     df = pd.DataFrame(results, columns=columns)
-    df.to_csv('gen.csv', index=False)
+    df.to_csv('gen_ORIN.csv', index=False)
     
     
     
