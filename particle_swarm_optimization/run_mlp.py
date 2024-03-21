@@ -1,8 +1,21 @@
 import random
 import pandas as pd
-from itertools import product
+import itertools
+import time
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler('/home/rouf/logger/pso_mlp.log')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
-data_path = "/home/rouf/Documents/code/evo-algo/real_data/old_PC.csv"
+data_path = "/home/rouf/evo-algo/real_data/ORIN.csv"
+optimization_weights = [
+    [34, 33, 33],
+] # f1, inference_time, memory
+objective_functions = ["max-normalized", "range-normalized", "non-normalized"]
+
 # excluding 150
 # param_grid = {
 #     'hidden_layer_sizes': [(50,), (100,), (50, 50), (50, 100), (100, 50), (100, 100), (50, 50, 50), (50, 50, 100), (50, 100, 50), (50, 100, 100), (100, 50, 50), (100, 50, 100), (100, 100, 50), (100, 100, 100)], 
@@ -23,10 +36,11 @@ param_grid = {
     'learning_rate': ['constant', 'adaptive', 'invscaling'],
     'warm_start': [True, False]
 }
+param_combinations = list(itertools.product(*param_grid.values()))
 
 def search_space_init():
     search_dict = {}
-    for hidden_layer_sizes, activation, solver, alpha, learning_rate, warm_start in product(*param_grid.values()): # search space initialization
+    for hidden_layer_sizes, activation, solver, alpha, learning_rate, warm_start in itertools.product(*param_grid.values()): # search space initialization
         param_tuple = (hidden_layer_sizes, activation, solver, alpha, learning_rate, warm_start)
         search_dict[param_tuple] = {}
     return search_dict
@@ -38,6 +52,9 @@ def load_data():
     max_f1 = -1
     max_memory = -1
     max_inference_time = -1
+    min_f1 = float('inf')
+    min_memory = float('inf')
+    min_inference_time = float('inf')
     for i in range(total_data):
         row = csv_data.iloc[i]
         l1 = row['l1']
@@ -65,6 +82,10 @@ def load_data():
         max_f1 = max_f1 if max_f1 > row['f1'] else row['f1']
         max_inference_time = max_inference_time if max_inference_time > row['inference time (ms)'] else row['inference time (ms)']
         max_memory = max_memory if max_memory > row['total_addr_space(mem)(MiB)'] else row['total_addr_space(mem)(MiB)']
+
+        min_f1 = min_f1 if min_f1 < row['f1'] else row['f1']
+        min_inference_time = min_inference_time if min_inference_time < row['inference time (ms)'] else row['inference time (ms)']
+        min_memory = min_memory if min_memory < row['total_addr_space(mem)(MiB)'] else row['total_addr_space(mem)(MiB)']
     
     data = {
         'search_space': search_dict,
@@ -72,12 +93,16 @@ def load_data():
             'f1': max_f1,
             'memory': max_memory,
             'inference_time': max_inference_time
+        },
+        'min': {
+            'f1': min_f1,
+            'memory': min_memory,
+            'inference_time': min_inference_time
         }
     }
     return data
 
 data = load_data()
-
 
 
 
@@ -110,15 +135,12 @@ def get_paramset_from_position(position):
 
 
 # particle swarm algorithm parameters
-particle_nums = 6 
-num_iterations = 30
+particle_nums = [5, 10, 15, 20, 25, 30] 
+num_iterations = [10, 20, 30, 40, 50]
 w_range = (0.5, 0.9)
 c1 = 2
 c2 = 2
 counter = 0
-f1_weight = 30/100
-memory_weight = (-1) * (50/100)
-inference_time_weight = (-1) * (20/100)
 
 
 
@@ -130,15 +152,58 @@ class Particle:
         self.best_position = self.position
         self.best_fitness = float('inf')
 
-def calculate_fitness(x): # x is a position
-    global counter
-    counter += 1
-    utilities = calculate_utility_from_position(x)
-    f1 = utilities['f1']
-    memory = utilities['memory']
-    inference_time = utilities['inference_time']
-    x = f1_weight * (f1/data['max']['f1']) + inference_time_weight * (inference_time/data['max']['inference_time']) + memory_weight * (memory/data['max']['memory'])
+# def calculate_fitness(x): # x is a position
+#     global counter
+#     counter += 1
+#     utilities = calculate_utility_from_position(x)
+#     f1 = utilities['f1']
+#     memory = utilities['memory']
+#     inference_time = utilities['inference_time']
+#     x = f1_weight * (f1/data['max']['f1']) + inference_time_weight * (inference_time/data['max']['inference_time']) + memory_weight * (memory/data['max']['memory'])
+#     return (1/(1 + x)) if x > 0 else (1 + abs(x))
+
+def fitness_function(utility, weights, objective_function):
+    f1 = utility['f1']
+    memory = utility['memory']
+    inference_time = utility['inference_time']
+    f1_weight = weights[0]/100
+    inference_time_weight = weights[1]/100
+    memory_weight = weights[2]/100
+    x = 0
+    f1_component = 0
+    inference_time_component = 0
+    memory_component = 0
+    if(objective_function == "max-normalized"):
+        f1_component = ((f1)/(data['max']['f1'])) * f1_weight
+        inference_time_component = ((inference_time)/(data['max']['inference_time'])) * inference_time_weight
+        memory_component = ((memory)/(data['max']['memory'])) * memory_weight
+    elif(objective_function == "range-normalized"):
+        f1_component = ((f1 - data['min']['f1'])/(data['max']['f1'] - data['min']['f1'])) * f1_weight
+        inference_time_component = ((inference_time - data['min']['inference_time'])/(data['max']['inference_time'] - data['min']['inference_time'])) * inference_time_weight
+        memory_component = ((memory - data['min']['memory'])/(data['max']['memory'] - data['min']['memory'])) * memory_weight
+    elif(objective_function == "non-normalized"):
+        f1_component = (f1) * f1_weight
+        inference_time_component = (inference_time/50) * inference_time_weight
+        memory_component = (memory/200) * memory_weight
+    x = f1_component - inference_time_component - memory_component
     return (1/(1 + x)) if x > 0 else (1 + abs(x))
+
+def optimal_algorithm(optimization_weights, objective_function):
+    opt_fitness = float("inf")
+    opt_params = []
+    opt_utility = {}
+    for params in param_combinations:
+        key = []
+        for p in params:
+            key.append(p)
+        key_tuple = tuple(key)
+        utility = data['search_space'][key_tuple]
+        fitness = fitness_function(utility, optimization_weights, objective_function)
+        if fitness < opt_fitness:
+            opt_fitness = fitness
+            opt_params = params
+            opt_utility = utility
+    return opt_fitness, opt_params, opt_utility
 
 def update_velocity(particle, global_best_position, w):
     for key in particle.velocity:
@@ -157,38 +222,117 @@ def update_position(particle):
         if particle.position[key] < 0:
             particle.position[key] = 0
 
-def interpolate_w(iteration_no): 
-    return w_range[1] - (((iteration_no + 1)/num_iterations) * (w_range[1] - w_range[0]))
+def interpolate_w(iteration_no, total_iteration): 
+    return w_range[1] - (((iteration_no + 1)/total_iteration) * (w_range[1] - w_range[0]))
 
-def pso_algorithm():
-    particles = [Particle() for _ in range(particle_nums + 1)]
-    global_best_particle = min(particles, key=lambda x: calculate_fitness(x.position))
+def pso_algorithm(weights, nums_part, nums_iter, obj_fun):
+    global counter
+    counter = 0
+    particles = [Particle() for _ in range(nums_part + 1)]
+    global_best_particle = min(particles, key=lambda x: fitness_function(calculate_utility_from_position(x.position), weights, obj_fun))
+    counter += nums_part
     global_best_position = global_best_particle.position
 
-    for _ in range(num_iterations):
+    for _ in range(nums_iter):
         for particle in particles:
-            fitness = calculate_fitness(particle.position)
+            fitness = fitness_function(calculate_utility_from_position(particle.position), weights, obj_fun)
             if fitness < particle.best_fitness:
                 particle.best_fitness = fitness
                 particle.best_position = particle.position
 
-            if fitness < calculate_fitness(global_best_position):
+            if fitness < fitness_function(calculate_utility_from_position(global_best_position), weights, obj_fun):
                 global_best_position = particle.position
-        
-        w = interpolate_w(_)
+        counter += (nums_part + 1) 
+        w = interpolate_w(_, nums_iter)
         for particle in particles:
             update_velocity(particle, global_best_position, w)
             update_position(particle)
 
-    return global_best_position, calculate_fitness(global_best_position)
+    counter += 1
+    return global_best_position, fitness_function(calculate_utility_from_position(global_best_position), weights, obj_fun)
 
 if __name__ == "__main__":
-    best_position, best_fitness = pso_algorithm()
-    print("Best fitness: ", best_fitness)
-    best_utility = calculate_utility_from_position(best_position)
-    print("Optimal Accuracy: ", round(best_utility['f1'] * 100, 3), "%")
-    print("Optimal inference time: ", round(best_utility['inference_time'], 3), "s")
-    print("Optimal required memory: ", round(best_utility['memory'], 3), "MiB")
-    print("Optimal idx: ", round(best_utility['idx'], 3), "th")
-    print("Optimal param: ", get_paramset_from_position(best_position))
-    print("Total inference:", counter)
+    # best_position, best_fitness = pso_algorithm()
+    # print("Best fitness: ", best_fitness)
+    # best_utility = calculate_utility_from_position(best_position)
+    # print("Optimal Accuracy: ", round(best_utility['f1'] * 100, 3), "%")
+    # print("Optimal inference time: ", round(best_utility['inference_time'], 3), "s")
+    # print("Optimal required memory: ", round(best_utility['memory'], 3), "MiB")
+    # print("Optimal idx: ", round(best_utility['idx'], 3), "th")
+    # print("Optimal param: ", get_paramset_from_position(best_position))
+    # print("Total inference:", counter)
+
+    results = []
+    i = 1
+    for objective_fun in objective_functions:
+        opt_fitness, opt_params, opt_utility = optimal_algorithm(optimization_weights[0], objective_fun)
+        opt_params = {
+            'hidden_layer_sizes': opt_params[0], 
+            'activation': opt_params[1],
+            'solver': opt_params[2],
+            'alpha': opt_params[3],
+            'learning_rate': opt_params[4],
+            'warm_start': opt_params[5]
+        }
+        for particle_num in particle_nums:
+            for iter_num in num_iterations:
+                s_time = time.time() * 1000
+                pso_best_individual, pso_best_fitness = pso_algorithm(optimization_weights[0], particle_num, iter_num, objective_fun)
+                pso_best_params = get_paramset_from_position(pso_best_individual)
+                pso_best_utility = calculate_utility_from_position(pso_best_individual)
+                pso_count = counter
+                result = [
+                    i,
+                    optimization_weights[0][0],
+                    optimization_weights[0][1],
+                    optimization_weights[0][2],
+                    objective_fun,
+                    particle_num, 
+                    iter_num,
+                    pso_best_params, 
+                    pso_best_utility['idx'],
+                    pso_best_fitness,
+                    pso_best_utility['f1'],
+                    pso_best_utility['inference_time'],
+                    pso_best_utility['memory'],
+                    pso_count,
+                    opt_params,
+                    opt_utility['idx'],
+                    opt_utility['f1'],
+                    opt_utility['inference_time'],
+                    opt_utility['memory'],
+                    abs(opt_utility['f1'] - pso_best_utility['f1']),
+                    abs(opt_utility['inference_time'] - pso_best_utility['inference_time']),
+                    abs(opt_utility['memory'] - pso_best_utility['memory'])
+                ]
+                results.append(result)
+                i+=1
+                e_time = time.time() * 1000
+                print(f"{i-1}-> {optimization_weights[0]} {objective_fun} DONE & it takes {e_time - s_time} ms")
+        
+    columns = [
+        'idx',
+        'f1-weight',
+        'inference-time-weight',
+        'memory-weight',
+        'objective-function',
+        'number_of_particle', 
+        'number_of_iteration',
+        'pso_best_params', 
+        'pso_best_param_idx',
+        'pso_best_fitness',
+        'pso_best_f1',
+        'pso_best_inference_time',
+        'pso_best_memory',
+        'pso_iteration_count',
+        'opt_params',
+        'opt_param_idx',
+        'opt_f1',
+        'opt_inference_time',
+        'opt_memory',
+        'f1_diff',
+        'f1_diff',
+        'memory_diff'
+    ]
+    df = pd.DataFrame(results, columns=columns)
+    df.to_csv('pso_ORIN.csv', index=False)
