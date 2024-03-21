@@ -10,7 +10,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-data_path = "/home/rouf/evo-algo/real_data/ORIN.csv"
+data_path = "/home/rouf/evo-algo/real_data/PC.csv"
 optimization_weights = [
     [34, 33, 33],
 ] # f1, inference_time, memory
@@ -335,4 +335,4 @@ if __name__ == "__main__":
         'memory_diff'
     ]
     df = pd.DataFrame(results, columns=columns)
-    df.to_csv('pso_ORIN.csv', index=False)
+    df.to_csv('pso_PC.csv', index=False)
